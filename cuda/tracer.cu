@@ -28,49 +28,33 @@ __host__ __device__ void draw_pixel(Tracer* tracer, float* canvas, int x, int y,
     canvas[(y * tracer->width + x) * 4 + 3] = 1.0;
 }
 
-__global__ void trace_pixel(Tracer* tracer, Block* block, Frustrum view, int offset_x, int offset_y, int width, int height, float* canvas) {
+__global__ void trace_pixel(Tracer* tracer, Block* block, Frustrum view, int min_x, int min_y, int max_x, int max_y, float* canvas) {
     int thread_index = blockIdx.x * blockDim.x + threadIdx.x;
-    int px = thread_index % width;
-    int py = thread_index / width;
+    int px = thread_index % (max_x - min_x);
+    int py = thread_index / (max_x - min_x);
 
-    if (px < 0 || px >= width || py < 0 || py >= height)
+    if (px < 0 || px >= tracer->width || py < 0 || py >= tracer->height)
         return;
     
-    float x_factor = (float)px / (float)width;
-    float y_factor = (float)py / (float)height;
+    float x_factor = (float)px / (float)(max_x - min_x);
+    float y_factor = (float)py / (float)(max_y - min_y);
     Vec3 screen_pos = ((view.orig_b - view.orig_a) * y_factor) + ((view.orig_d - view.orig_a) * x_factor) + view.orig_a;
-    // printf("Screen pos: (%f, %f, %f)\n", screen_pos.x, screen_pos.y, screen_pos.z);
-    // printf("View orig a: %f, %f, %f\n", view.orig_a.x, view.orig_a.y, view.orig_a.z);
 
     Vec3 ray_direction = screen_pos - view.origin;
 
-    if (px == 0 && py == 540) {
-        printf("x_factor: %f\n", x_factor);
-        
-        Vec3 a_d = view.orig_d - view.orig_a;
-        printf("AD vector: %f, %f, %f\n", a_d.x, a_d.y, a_d.z);
-        printf("Orig a: %f, %f, %f\n", view.orig_a.x, view.orig_a.y, view.orig_a.z);
-        printf("Orig d: %f, %f, %f\n", view.orig_d.x, view.orig_d.y, view.orig_d.z);
-
-        printf("Ray direction: %f, %f, %f\n", ray_direction.x, ray_direction.y, ray_direction.z);
-    }
-    // printf("Ray: (%f, %f, %f) (%f, %f, %f)\n", view.origin.x, view.origin.y, view.origin.z, ray_direction.x, ray_direction.y, ray_direction.z);
-
     float distance;
     if (block->aabb.intersects(view.origin, ray_direction, &distance)) {
-        float light = 300.0 / (distance * distance);
-        draw_pixel(tracer, canvas, px + offset_x, py + offset_y, block->color * light);
+        float light = 1000.0 / (distance * distance);
+        draw_pixel(tracer, canvas, px + min_x, py + min_y, block->color * light);
     }
 }
 
 __host__ __device__ void trace_leaf(Tracer* tracer, Block* block, Frustrum view, float* canvas) {
     Vec3 side_normalized = view.side.normalize();
     Vec3 up_normalized = view.up.normalize();;
-    Vec3 screen_center = view.forward + view.origin;
-    float side_length = view.side.length() * 0.5;
-    float up_length = view.up.length() * 0.5;
-
-    printf("Orig_a: %f, %f, %f\n", view.orig_a.x, view.orig_a.y, view.orig_a.z);
+    Vec3 screen_center = view.origin + view.forward;
+    float side_length = view.side.length() * 2.0;
+    float up_length = view.up.length() * 2.0;
 
     AABB2 screen_bounding_box = AABB2(
         Vec2(
@@ -86,23 +70,16 @@ __host__ __device__ void trace_leaf(Tracer* tracer, Block* block, Frustrum view,
     screen_bounding_box.max = screen_bounding_box.max.minimum(Vec2(0.5, 0.5));
     screen_bounding_box.min = screen_bounding_box.min.maximum(Vec2(-0.5, -0.5));
     
-    int offset_x = (screen_bounding_box.min.x + 0.5) * tracer->width;
-    int offset_y = (screen_bounding_box.min.y + 0.5) * tracer->height;
-    int width = (screen_bounding_box.max.x + 0.5) * tracer->width - offset_x - 1;
-    int height = (screen_bounding_box.max.y + 0.5) * tracer->height - offset_y - 1;
+    int min_x = (screen_bounding_box.min.x + 0.5) * tracer->width;
+    int min_y = (screen_bounding_box.min.y + 0.5) * tracer->height;
+    int max_x = (screen_bounding_box.max.x + 0.5) * tracer->width;
+    int max_y = (screen_bounding_box.max.y + 0.5) * tracer->height;
 
-    int threads = width * height;
+    int threads = (max_x - min_x) * (max_y - min_y);
     int block_size = 512;
     int blocks = (threads / 512) + 1;
 
-    draw_pixel(tracer, canvas, offset_x, offset_y, Vec3(1.0, 0.0, 0.0));
-    draw_pixel(tracer, canvas, offset_x, offset_y + height, Vec3(1.0, 0.0, 0.0));
-    draw_pixel(tracer, canvas, offset_x + width, offset_y, Vec3(1.0, 0.0, 0.0));
-    draw_pixel(tracer, canvas, offset_x + width, offset_y + height, Vec3(1.0, 0.0, 0.0));
-
-    printf("AABB hit block (%f, %f, %f, %f)\n", screen_bounding_box.min.x, screen_bounding_box.min.y, screen_bounding_box.max.x, screen_bounding_box.max.y);
-
-    trace_pixel<<<blocks, block_size>>>(tracer, block, view, offset_x, offset_y, width, height, canvas);
+    trace_pixel<<<blocks, block_size>>>(tracer, block, view, min_x, min_y, max_x, max_y, canvas);
 }
 
 
@@ -112,7 +89,6 @@ __global__ void trace_node(Tracer* tracer, NodeChilds childs, Frustrum view, flo
     AABBTreeNode* current_node = childs.childs[thread_index];
 
     AABB2 bounding_box = current_node->trace_box(view);
-    printf("Resulting bounding box: (%f, %f), (%f, %f)\n", bounding_box.min.x, bounding_box.min.y, bounding_box.max.x, bounding_box.max.y);
     view.resize(bounding_box);
 
     if (current_node->is_leaf()) {
@@ -122,17 +98,6 @@ __global__ void trace_node(Tracer* tracer, NodeChilds childs, Frustrum view, flo
         childs.childs[0] = current_node->get_c1();
         childs.childs[1] = current_node->get_c2();
         trace_node<<<1, 2>>>(tracer, childs, view, canvas);
-    }
-
-    int offset_x = (bounding_box.min.x + 0.5) * tracer->width;
-    int offset_y = (bounding_box.min.y + 0.5) * tracer->height;
-    int width = (bounding_box.max.x + 0.5) * tracer->width;
-    int height = (bounding_box.max.y + 0.5) * tracer->height;
-    printf("SCREEN BB: %i, %i, %i, %i\n", offset_x, offset_y, width, height);
-    for (int x = 0; x < width; x++) {
-        for (int y = 0; y < height; y++) {
-            // draw_pixel(tracer, canvas, x + offset_x, y + offset_y, Vec3(0.0, 0.0, 1.0));
-        }
     }
 }
 

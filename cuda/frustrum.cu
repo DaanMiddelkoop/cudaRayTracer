@@ -81,33 +81,10 @@ __host__ __device__ void Frustrum::resize(AABB2 boundaries) {
     // 0.5 for average * 0.5 for requiring halve vectors = 0.25
     Vec3 s = (this->orig_d - this->orig_a);
     Vec3 u = (this->orig_b - this->orig_a);
-
-    printf("Resizing\n");
-    screen_center.print();
-    s.print();
-    u.print();
-    printf("\n\n");
-    printf("Boundaries: (%f, %f) (%f, %f)\n", boundaries.min.x, boundaries.min.y, boundaries.max.x, boundaries.max.y);
-    printf("Side: %f, %f, %f\n",s.x, s.y, s.z);
-    printf("up: %f, %f, %f\n", u.x, u.y, u.z);
-
-    printf("Origins before resizing: ");
-    this->orig_a.print();
-    this->orig_b.print();
-    this->orig_c.print();
-    this->orig_d.print();
-    printf("\nDone\n");
     
     // This feels wrong but the boundaries itself will be negative if necessary thus everything should be addition.
     this->orig_a = screen_center + (s * boundaries.min.x) + (u * boundaries.min.y);
     this->orig_b = screen_center + (s * boundaries.min.x) + (u * boundaries.max.y);
     this->orig_c = screen_center + (s * boundaries.max.x) + (u * boundaries.max.y);
     this->orig_d = screen_center + (s * boundaries.max.x) + (u * boundaries.min.y);
-
-    printf("Origins after resizing: ");
-    this->orig_a.print();
-    this->orig_b.print();
-    this->orig_c.print();
-    this->orig_d.print();
-    printf("\nDone!\n");
 }

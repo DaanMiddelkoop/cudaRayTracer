@@ -58,24 +58,12 @@ AABB2 AABBTreeNode::trace_box(Frustrum view) {
     Vec3 view_plane_center = (view.orig_a + view.orig_c) * 0.5;
     Vec3 up = (view.orig_b + view.orig_c) * 0.5 - view_plane_center;
     Vec3 side = (view.orig_c + view.orig_d) * 0.5 - view_plane_center;
-    printf("Side vector size: %f\n", side.length());
-    printf("view origins:");
-    view.orig_a.print();
-    view.orig_b.print();
-    view.orig_c.print();
-    view.orig_d.print();
-    printf("\n");
 
     for (int i = 0; i < 8; i++) {
         Vec3 intersection_point = view_plane.intersection_point(view.origin, vertices[i] - view.origin) - view_plane_center;
         // Project up vector onto intersection line.
-        printf("Ray: ");
-        view.origin.print();
-        (vertices[i] - view.origin).print();
-        printf("\nIntersection point: %f, %f, %f\n", intersection_point.x, intersection_point.y, intersection_point.z);
         float y = intersection_point.dot(up.normalize()) / up.length();
         float x = intersection_point.dot(side.normalize()) / side.length();
-        printf("screen_point: %f, %f\n", x, y);
         projections[i] = Vec2(min(0.5, max(-0.5, x)), min(0.5, max(-0.5, y))); // Limit vertices outside screen to be on the edge, otherwise weird stuff happens.
     }
 
@@ -83,8 +71,6 @@ AABB2 AABBTreeNode::trace_box(Frustrum view) {
     Vec2 maximum = projections[0];
 
     for (int i = 1; i < 8; i++) {
-        printf("projection %i: (%f, %f)\n", i, projections[i].x, projections[i].y);
-        printf("minmax: (%f, %f) (%f, %f)\n", minimum.x, minimum.y, maximum.x, maximum.y);
         minimum = minimum.minimum(projections[i]);
         maximum = maximum.maximum(projections[i]);
     }

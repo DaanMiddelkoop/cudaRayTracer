@@ -34,12 +34,12 @@ int main() {
         Frustrum view = Frustrum(
             position, // position
             forward, // forward
-            up * 1.08, // up
-            side * 1.92 // side
+            up.normalize() * 1.08, // up
+            side.normalize() * 1.92 // side
         );
 
-        float* surface = trace_manager.render_frame(view);
-        render_frame(surface);
+        // float* surface = trace_manager.render_frame(view);
+        render_frame(trace_manager.cpu_canvas);
         printf("frame: %i\n", i);
         i++;
     }
