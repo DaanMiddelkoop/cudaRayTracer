@@ -59,6 +59,15 @@ __host__ __device__ bool AABB3::intersects(Vec3 ray_origin, Vec3 ray_direction, 
     return true;
 }
 
+__host__ __device__ float AABB3::surface() {
+    float x = max.x - min.x;
+    float y = max.y - min.y;
+    float z = max.z - min.z;
+
+    return (x * y + y * z + z * x) * 2.0;
+
+}
+
 __host__ __device__ AABB2::AABB2() {
     min = Vec2();
     max = Vec2();

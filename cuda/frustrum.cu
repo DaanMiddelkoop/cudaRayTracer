@@ -77,8 +77,8 @@ __host__ __device__ Vec3 Frustrum::normal() {
 }
 
 __host__ __device__ void Frustrum::resize(AABB2 boundaries) {
-    Vec3 screen_center = origin + forward;
-    // 0.5 for average * 0.5 for requiring halve vectors = 0.25
+    Vec3 screen_center = (orig_a + orig_c) * 0.5;
+
     Vec3 s = (this->orig_d - this->orig_a);
     Vec3 u = (this->orig_b - this->orig_a);
     

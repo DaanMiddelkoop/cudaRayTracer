@@ -6,6 +6,7 @@
 
 class Block {
 public:
+    __host__ __device__ Block();
     __host__ __device__ Block(AABB3 aabb, Vec3 color);
 
     AABB3 aabb;

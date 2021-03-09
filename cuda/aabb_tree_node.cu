@@ -2,6 +2,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <new>
 
 AABBTreeNode::AABBTreeNode() {
     this->leaf = true;
@@ -45,8 +46,13 @@ AABB3* AABBTreeNode::get_bounding_box() {
 }
 
 void AABBTreeNode::insert_block(Block* child) {
-    // This code is unimplemented oopsie.
-    assert(false);
+    if (is_leaf()) {
+        AABBTreeNode* a = new AABBTreeNode(this->get_leaf());
+        AABBTreeNode* b = new AABBTreeNode(child);
+        new (this) AABBTreeNode(a, b);
+    } else {
+        assert(false);
+    }
 }
 
 AABB2 AABBTreeNode::trace_box(Frustrum view) {
@@ -56,14 +62,15 @@ AABB2 AABBTreeNode::trace_box(Frustrum view) {
 
     Plane3 view_plane = Plane3(view.orig_a, view.orig_b, view.orig_c);
     Vec3 view_plane_center = (view.orig_a + view.orig_c) * 0.5;
-    Vec3 up = (view.orig_b + view.orig_c) * 0.5 - view_plane_center;
-    Vec3 side = (view.orig_c + view.orig_d) * 0.5 - view_plane_center;
+    Vec3 up = (view.orig_b - view.orig_a);
+    Vec3 side = (view.orig_d - view.orig_a);
 
     for (int i = 0; i < 8; i++) {
-        Vec3 intersection_point = view_plane.intersection_point(view.origin, vertices[i] - view.origin) - view_plane_center;
+        Vec3 intersection_point = view_plane.intersection_point(view.origin, vertices[i] - view.origin);
+        Vec3 relative_screen_point = intersection_point - view_plane_center;
         // Project up vector onto intersection line.
-        float y = intersection_point.dot(up.normalize()) / up.length();
-        float x = intersection_point.dot(side.normalize()) / side.length();
+        float y = relative_screen_point.dot(up.normalize()) / up.length();
+        float x = relative_screen_point.dot(side.normalize()) / side.length();
         projections[i] = Vec2(min(0.5, max(-0.5, x)), min(0.5, max(-0.5, y))); // Limit vertices outside screen to be on the edge, otherwise weird stuff happens.
     }
 

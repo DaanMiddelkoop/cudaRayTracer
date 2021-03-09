@@ -22,6 +22,7 @@ using namespace glm;
 GLuint viewGLTexture;
 int width;
 int height;
+double last_time;
 
 void create_screen(int w, int h)
 {
@@ -68,6 +69,8 @@ void create_screen(int w, int h)
 	// Clear the screen. It's not mentioned before Tutorial 02, but it can cause flickering, so it's there nonetheless.
 	glClear( GL_COLOR_BUFFER_BIT );
 
+	last_time = glfwGetTime();
+
 	return;
 }
 
@@ -75,8 +78,13 @@ void opengl_exit() {
 	glfwTerminate();
 }
 
+
 void render_frame(void* data)
 {
+	double current_time = glfwGetTime();
+	printf("FPS: %f\n", 1 / (current_time - last_time));
+	last_time = current_time;
+
 	glEnable(GL_TEXTURE_2D);
     glGenTextures(1, &viewGLTexture);
 
@@ -85,28 +93,20 @@ void render_frame(void* data)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_FLOAT, data);
-    } 
-	GLenum err = glGetError();
-	if (err != GL_NO_ERROR)
-		printf("OPENGL Error: %u:%s\n", err, glewGetErrorString(err));
-
+    }
+	
 	GLuint frame_buffer_obj;
 	glGenFramebuffers(1, &frame_buffer_obj);
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, frame_buffer_obj);
 	glFramebufferTexture2D(GL_READ_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, viewGLTexture, 0);
-	err = glGetError();
-	if (err != GL_NO_ERROR)
-		printf("OPENGL Error: %u:%s\n", err, glewGetErrorString(err));
 
 	// Draw frame to screen.
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	glBlitFramebuffer(0, 0, width, height, 0, 0, width, height,
-		GL_COLOR_BUFFER_BIT, GL_NEAREST);
-
-	err = glGetError();
-	if (err != GL_NO_ERROR)
-		printf("OPENGL Error: %u:%s\n", err, glewGetErrorString(err));
+		GL_COLOR_BUFFER_BIT, GL_NEAREST);	
 
 	glfwSwapBuffers(window);
 	glfwPollEvents();
+
+	glDeleteTextures(1, &viewGLTexture);
 }

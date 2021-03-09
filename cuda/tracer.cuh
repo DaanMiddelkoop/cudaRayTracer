@@ -15,6 +15,11 @@ public:
 
     AABBTree* aabb_tree;
     float* depth_map;
+
+    AABBTreeNode** node_queue;
+    int done;
+    int queue_index;
+    int lock;
 };
 
 #endif

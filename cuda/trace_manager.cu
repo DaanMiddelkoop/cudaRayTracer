@@ -13,6 +13,8 @@ __host__ TraceManager::TraceManager(int width, int height) {
     this->height = height;
     cpu_canvas = new float[width * height * 4 * sizeof(float)];
 
+    cudaDeviceSetLimit(cudaLimitStackSize, 1024);
+
     cudaMalloc(&tracer, sizeof(Tracer));
     cudaMalloc(&canvas, width * height * 4 * sizeof(float));
     cudaMalloc(&blocks, sizeof(Block));
