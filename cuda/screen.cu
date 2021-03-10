@@ -71,6 +71,9 @@ void create_screen(int w, int h)
 
 	last_time = glfwGetTime();
 
+	double tmp;
+	mouse_delta(&tmp, &tmp);
+
 	return;
 }
 
@@ -109,4 +112,40 @@ void render_frame(void* data)
 	glfwPollEvents();
 
 	glDeleteTextures(1, &viewGLTexture);
+}
+
+bool key_pressed(KEY key) {
+	switch (key) {
+		case KEY::W:
+			return glfwGetKey(window, GLFW_KEY_W);
+
+		case KEY::A:
+			return glfwGetKey(window, GLFW_KEY_A);
+		
+		case KEY::S:
+			return glfwGetKey(window, GLFW_KEY_S);
+
+		case KEY::D:
+			return glfwGetKey(window, GLFW_KEY_D);
+
+		case KEY::UP:
+			return glfwGetKey(window, GLFW_KEY_UP);
+
+		case KEY::DOWN:
+			return glfwGetKey(window, GLFW_KEY_DOWN);
+	};
+	
+	return false;
+}
+
+double x_pos, y_pos;
+
+void mouse_delta(double* mouse_x, double* mouse_y) {
+	double tx, ty;
+	glfwGetCursorPos(window, &tx, &ty);
+
+	*mouse_x = tx - x_pos;
+	*mouse_y = ty - y_pos;
+	x_pos = tx;
+	y_pos = ty;
 }

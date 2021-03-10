@@ -1,6 +1,7 @@
 #include "frustrum.cuh"
 
 #include <stdio.h>
+#include <new>
 
 __host__ __device__ Frustrum::Frustrum() 
 {
@@ -13,6 +14,12 @@ __host__ __device__ Frustrum::Frustrum()
     b = Vec3();
     c = Vec3();
     d = Vec3();
+}
+
+__host__ __device__ Frustrum::Frustrum(Vec3 position, Vec3 forward, float aspect_ratio) {
+    Vec3 side = Vec3(forward.z, 0.0, -forward.x).normalize() * aspect_ratio;
+    Vec3 up = forward.cross(side).normalize();
+    new (this) Frustrum(position, forward, up, side);
 }
 
 __host__ __device__ Frustrum::Frustrum(Vec3 origin, Vec3 forward, Vec3 up, Vec3 side)

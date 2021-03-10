@@ -10,6 +10,7 @@ void AABBTree::receive_world(Block* blocks, int amount) {
 
 
 void AABBTree::construct_tree(Block* blocks, int amount) {
+    
     this->root = new AABBTreeNode(&blocks[0]);
     for (int i = 1; i < amount; i++) {
 
@@ -30,7 +31,9 @@ void AABBTree::construct_tree(Block* blocks, int amount) {
             }
         }
         
-        printf("adding block: %i at depth: %i\n", i, depth);
+        if (i % 10 == 0) {
+            printf("adding block: %i at depth: %i\n", i, depth);
+        }
         current_node->insert_block(&blocks[i]);
     }
 }

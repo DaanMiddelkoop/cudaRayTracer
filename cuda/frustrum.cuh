@@ -8,6 +8,7 @@
 class Frustrum {
 public:
     __host__ __device__ Frustrum();
+    __host__ __device__ Frustrum(Vec3 position, Vec3 forward, float aspect_ratio);
     __host__ __device__ Frustrum(Vec3 origin, Vec3 foward, Vec3 up, Vec3 side);
 
     __host__ __device__ bool intersects(AABB3* aabb);

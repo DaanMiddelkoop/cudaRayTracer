@@ -21,6 +21,7 @@ public:
     float* canvas;
 
     Block* blocks;
+    AABBTreeNode* nodes;
 };
 
 #endif

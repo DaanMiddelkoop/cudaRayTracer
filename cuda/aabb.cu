@@ -1,6 +1,7 @@
 #include "aabb.cuh"
 
 #include <math.h>
+#include <stdio.h>
 
 __host__ __device__ AABB3::AABB3() {
     min = Vec3();
@@ -66,6 +67,14 @@ __host__ __device__ float AABB3::surface() {
 
     return (x * y + y * z + z * x) * 2.0;
 
+}
+
+__host__ __device__ void AABB3::print() {
+    printf("AABB3(%f, %f, %f)(%f, %f, %f)\n", min.x, min.y, min.z, max.x, max.y, max.z);
+}
+
+__host__ __device__ Vec3 AABB3::center() {
+    return Vec3((max.x + min.x) / 2.0, (max.y + min.y) / 2.0, (max.z + min.z) / 2.0);
 }
 
 __host__ __device__ AABB2::AABB2() {

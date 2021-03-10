@@ -51,6 +51,10 @@ __host__ __device__ void Vec3::print() {
     printf("V(%f, %f, %f)", x, y, z);
 }
 
+__host__ __device__ Vec3 Vec3::rotate(Vec3 axis, float rotation) {
+    return (*this * cos(rotation)) + (axis.cross(*this) * sin(rotation)) + (axis * (axis.dot(*this)) * (1 - cos(rotation)));
+}
+
 
 
 

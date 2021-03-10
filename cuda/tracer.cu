@@ -29,91 +29,73 @@ __host__ __device__ void draw_pixel(Tracer* tracer, float* canvas, int x, int y,
     canvas[(y * tracer->width + x) * 4 + 3] = 1.0;
 }
 
-__global__ void trace_pixel(Tracer* tracer, Block* block, Frustrum view, int min_x, int min_y, int max_x, int max_y, float* canvas) {
-    int thread_index = blockIdx.x * blockDim.x + threadIdx.x;
-    int px = thread_index % (max_x - min_x);
-    int py = thread_index / (max_x - min_x);
+__host__ __device__ void trace_leaf(Tracer* tracer, Block* block, float distance, float* canvas) {
 
-    if (px + min_x < 0 || px + min_x >= tracer->width || py + min_y < 0 || py + min_y >= tracer->height)
-        return;
-    
-    float x_factor = ((float)px + 0.5) / (float)(max_x - min_x);
-    float y_factor = ((float)py + 0.5) / (float)(max_y - min_y);
-    Vec3 screen_pos = ((view.orig_b - view.orig_a) * y_factor) + ((view.orig_d - view.orig_a) * x_factor) + view.orig_a;
-
-    Vec3 ray_direction = screen_pos - view.origin;
-
-    float distance;
-    if (block->aabb.intersects(view.origin, ray_direction, &distance)) {
-        float light = 50.0 / (distance * distance);
-        draw_pixel(tracer, canvas, px + min_x, py + min_y, block->color * light);
-    }
+    float light = 1.0 / distance;
+    draw_pixel(tracer, canvas, 0, 0, block->color * (0.3 + min(0.7, light)));
 }
 
-__host__ __device__ void trace_leaf(Tracer* tracer, Block* block, Frustrum view, float* canvas) {
-
-    
-    Vec3 side_normalized = view.side.normalize();
-    Vec3 up_normalized = view.up.normalize();;
-    Vec3 screen_center = view.origin + view.forward;
-    float side_length = view.side.length() * 2.0;
-    float up_length = view.up.length() * 2.0;
-
-    AABB2 screen_bounding_box = AABB2(
-        Vec2(
-            (view.orig_a - screen_center).dot(side_normalized) / side_length,
-            (view.orig_a - screen_center).dot(up_normalized) / up_length
-        ),
-        Vec2(
-            (view.orig_c - screen_center).dot(side_normalized) / side_length,
-            (view.orig_c - screen_center).dot(up_normalized) / up_length
-        )
-    );
-
-    screen_bounding_box.max = screen_bounding_box.max.minimum(Vec2(0.5, 0.5));
-    screen_bounding_box.min = screen_bounding_box.min.maximum(Vec2(-0.5, -0.5));
-    
-    int min_x = (screen_bounding_box.min.x + 0.5) * tracer->width;
-    int min_y = (screen_bounding_box.min.y + 0.5) * tracer->height;
-    int max_x = (screen_bounding_box.max.x + 0.5) * tracer->width - 1;
-    int max_y = (screen_bounding_box.max.y + 0.5) * tracer->height - 1;
-
-    int threads = (max_x - min_x) * (max_y - min_y);
-    int block_size = 512;
-    int blocks = (threads / 512) + 1;
-
-    if (max_x - min_x <= 5 && max_y - min_y < 5)
-        return;
-
-    trace_pixel<<<blocks, block_size>>>(tracer, block, view, min_x, min_y, max_x, max_y, canvas);
-
-
-}
-
-__host__ __device__ void trace_node(Tracer* tracer, AABBTreeNode* current_node, Frustrum view, float* canvas) {
-    
+__host__ __device__ void trace_node(Tracer* tracer, AABBTreeNode* current_node, Vec3 ray_origin, Vec3 ray_direction, float* canvas) {
 
     AABBTreeNode* node_tree[20];
     node_tree[0] = current_node;
+    float max_depth = 9999999; // already found a pixel at this depth, no need to search deeper
     int index = 1;
 
-    while (index != 0) {
+    while (index > 0) {
         index -= 1;
         AABBTreeNode* node = node_tree[index];
+        // printf("Inspecting node: %p\n", node);
 
-        AABB2 bounding_box = node->trace_box(view);
-        if ((bounding_box.max.x - bounding_box.min.x < 0.01) || (bounding_box.max.y - bounding_box.min.y < 0.01)) {
+
+
+        float depth;
+        // printf("Ray(%f, %f, %f) (%f, %f, %f) does not intersect\n (%f, %f, %f) (%f, %f, %f)\n", ray_origin.x, ray_origin.y, ray_origin.z, ray_direction.z, ray_direction.y, ray_direction.z, node->bounding_box.min.x, node->bounding_box.min.y, node->bounding_box.min.z, node->bounding_box.max.x, node->bounding_box.max.y, node->bounding_box.max.z);
+        if ((!node->bounding_box.intersects(ray_origin, ray_direction, &depth)) || depth > max_depth + 0.001) {
             continue;
         }
 
+        // printf("hitting node at depth %f , max_depth: %f with aabb: ", depth, max_depth);
+        // node->bounding_box.print();
+
         if (node->is_leaf()) {
-            trace_leaf(tracer, node->get_leaf(), view, canvas);
+            // printf("\n\nNode is leaf\n\n\n");
+            trace_leaf(tracer, node->get_leaf(), depth, canvas);
+            max_depth = depth;
         } else {
-            if (index < 18) {
+
+            if (index <= 18) {
                 // Order for better performance
-                node_tree[index] = node->get_c1();
-                node_tree[index + 1] = node->get_c2();
-                index += 2;
+                float depth1 = -100.0f;
+                bool hit_c1 = node->get_c1()->bounding_box.intersects(ray_origin, ray_direction, &depth1) && (depth <= max_depth + 0.001);
+
+                float depth2 = -100.0f;
+                bool hit_c2 = node->get_c2()->bounding_box.intersects(ray_origin, ray_direction, &depth2) && (depth <= max_depth + 0.001);
+
+                // printf("depth of childs: %f, %f, hit: %i, %i\n", depth1, depth2, hit_c1, hit_c2);
+                // printf("Bounding boxes: \n");
+                // node->get_c1()->bounding_box.print();
+                // node->get_c2()->bounding_box.print();
+                
+                if (hit_c1 && hit_c2) {
+                    if (depth1 < depth2) {
+                        node_tree[index++] = node->get_c2();
+                        node_tree[index++] = node->get_c1();
+                    } else {
+                        node_tree[index++] = node->get_c1();
+                        node_tree[index++] = node->get_c2();
+                    }
+                } else {
+                    if (hit_c1) {
+                        node_tree[index++] = node->get_c1();
+                    }
+
+                    if (hit_c2) {
+                        node_tree[index++] = node->get_c2();
+                    }
+                }
+            } else {
+                printf("BAAAAAD\n");
             }
         }
     }
@@ -122,27 +104,28 @@ __host__ __device__ void trace_node(Tracer* tracer, AABBTreeNode* current_node, 
 __global__ void trace_node_kernel(Tracer* tracer, Frustrum view, float* canvas) {
 
     AABBTreeNode* root = tracer->aabb_tree->root;
-    int thread_x = blockIdx.x * blockDim.x + threadIdx.x;
-    int thread_y = blockIdx.y * blockDim.y + threadIdx.y;
-    
-    float start_x = (float)thread_x / (float)(blockDim.x * 1);
-    float end_x = (float)(thread_x + 1) / (float)(blockDim.x * 1);
-    
-    float start_y = (float)thread_y / (float)(blockDim.y * 1);
-    float end_y = (float)(thread_y + 1) / (float)(blockDim.y * 1);
+    int thread_index = blockIdx.x * blockDim.x + threadIdx.x;
+    if (thread_index >= 1920 * 1080) {
+        return;
+    }
 
+    int px = thread_index % 1920;
+    int py = thread_index / 1920;
 
+    // if (!(px == 960 && py == 540))
+    //     return;
 
-    AABB2 screen_space = AABB2(
-        Vec2(start_x - 0.5001, start_y - 0.5),
-        Vec2(end_x - 0.4999, end_y - 0.5)
-    );
+    float x = (float)px / 1920.0 - 0.5;
+    float y = (float)py / 1080.0 - 0.5;
 
-    //printf("Thread processing screen space: (%f, %f) (%f, %f)\n", screen_space.min.x, screen_space.min.y, screen_space.max.x, screen_space.max.y);
+    // ray defined by view
+    Vec3 ray_origin = view.origin;
+    Vec3 ray_direction = view.forward + (view.side * x) + (view.up * y);
 
-    view.resize(screen_space);
+    // printf("Ray: (%f, %f, %f), (%f, %f, %f)\n", ray_origin.x, ray_origin.y, ray_origin.z, ray_direction.x, ray_direction.y, ray_direction.z);
 
-    trace_node(tracer, root, view, canvas);
+    canvas = &canvas[(py * tracer->width + px) * 4];
+    trace_node(tracer, root, ray_origin, ray_direction.normalize(), canvas);
 }
 
 __host__ __device__ void Tracer::render_frame(int thread_index, Frustrum view, float* canvas) {
@@ -152,10 +135,14 @@ __host__ __device__ void Tracer::render_frame(int thread_index, Frustrum view, f
 
     // node_queue[0] = this->aabb_tree->root;
     // queue_index = 1;
-    1080
-    dim3 grid(1, 1);
-    dim3 block(16, 16);
-    trace_node_kernel<<<grid, block>>>(this, view, canvas);
+
+    printf("Rooooooooot: %p\n", this->aabb_tree->root);
+
+    int threads = 1920 * 1080;
+    int block_size = 1000;
+    int blocks = (threads / block_size) + 1;
+
+    trace_node_kernel<<<blocks, block_size>>>(this, view, canvas);
     // cudaDeviceSynchronize();
     cudaError_t error = cudaPeekAtLastError();
     if (error != cudaSuccess) {

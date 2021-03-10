@@ -18,6 +18,21 @@ public:
     __host__ __device__ float dot(Vec3 other);
     __host__ __device__ Vec3 cross(Vec3 other);
     __host__ __device__ void print();
+    __host__ __device__ Vec3 rotate(Vec3 axis, float radians);
+
+    __host__ __device__ Vec3& operator+=(const Vec3& a) {
+        this->x += a.x;
+        this->y += a.y;
+        this->z += a.z;
+        return *this;
+    }
+
+    __host__ __device__ Vec3& operator-=(const Vec3& a) {
+        this->x -= a.x;
+        this->y -= a.y;
+        this->z -= a.z;
+        return *this;
+    }
 };
 
 class Vec2 {
@@ -46,6 +61,10 @@ __host__ __device__ inline Vec3 operator*(const Vec3& b, float a) {
 
 __host__ __device__ inline Vec3 operator*(float a, const Vec3& b) {
     return b * a;
+}
+
+__host__ __device__ inline Vec3 operator-=(const Vec3& a, const Vec3& b) {
+    return Vec3(a.x - b.x, a.y - b.y, a.z - b.z);
 }
 
 __host__ __device__ inline Vec2 operator+(const Vec2& a, const Vec2& b) {

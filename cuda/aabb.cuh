@@ -15,6 +15,8 @@ public:
     __host__ __device__ AABB3 get_union(AABB3* other);
     __host__ __device__ bool intersects(Vec3 ray_origin, Vec3 ray_direction, float* distance);
     __host__ __device__ float surface();
+    __host__ __device__ Vec3 center();
+    __host__ __device__ void print();
 };
 
 class AABB2 {

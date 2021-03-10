@@ -12,6 +12,7 @@ public:
     AABB3 bounding_box;
     void* c1;
     void* c2;
+    void* parent = 0;
 
     __host__ __device__ AABBTreeNode();
     __host__ __device__ AABBTreeNode(AABBTreeNode* c1, AABBTreeNode* c2);

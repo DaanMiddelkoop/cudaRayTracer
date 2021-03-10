@@ -13,7 +13,7 @@ AABBTreeNode::AABBTreeNode(AABBTreeNode* c1, AABBTreeNode* c2) {
     this->leaf = false;
     this->c1 = c1;
     this->c2 = c2;
-    this->bounding_box = get_c1()->get_bounding_box()->get_union(get_c2()->get_bounding_box());
+    this->bounding_box = c1->bounding_box.get_union(&c2->bounding_box);
 }
 
 AABBTreeNode::AABBTreeNode(Block* child) {
